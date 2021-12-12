@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     SafeAreaView,
     StyleSheet,
@@ -10,20 +10,26 @@ import { Todo } from './types';
 import TodoItems from './app/Components/TodoItems';
 import Footer from './app/Components/Footer';
 import AddTodo from './app/Components/AddTodo';
+import { getObject, setObject } from './app/lib/storeData';
 
+const TODOS_KEY = 'TODOS';
 export default function App() {
     const [todos, setTodos] = useState<Todo[]>([]);
 
-    const toggleTodo = useCallback((id: number) => {
-        setTodos((todos) => {
-            return todos.map((todo) => {
-                if (todo.id !== id) {
-                    return todo;
-                }
+    useEffect(() => {
+        (async () => setTodos((await getObject(TODOS_KEY)) || []))();
+    }, []);
 
-                return { ...todo, completed: !todo.completed };
-            });
-        });
+    useEffect(() => {
+        (async () => await setObject(TODOS_KEY, todos))();
+    }, [todos]);
+
+    const toggleTodo = useCallback(async (id: number) => {
+        setTodos((todos) =>
+            todos.map((todo) =>
+                todo.id !== id ? todo : { ...todo, completed: !todo.completed }
+            )
+        );
     }, []);
 
     const addTodo = useCallback((todo: Pick<Todo, 'text'>) => {
@@ -31,17 +37,15 @@ export default function App() {
             return;
         }
 
-        setTodos((todos) => {
-            return [
-                ...todos,
-                {
-                    id: todos.length + 1,
-                    text: todo.text,
-                    completed: false,
-                    createdAt: Date.now(),
-                },
-            ];
-        });
+        setTodos((todos) => [
+            ...todos,
+            {
+                id: todos.length + 1,
+                text: todo.text,
+                completed: false,
+                createdAt: Date.now(),
+            },
+        ]);
     }, []);
 
     const removeTodo = useCallback((id: number) => {
@@ -56,19 +60,24 @@ export default function App() {
                 toggleTodo={toggleTodo}
                 removeTodo={removeTodo}
             />
-            <StatusBar backgroundColor={'dodgerblue'} style='auto' />
+            <StatusBar
+                backgroundColor={'dodgerblue'}
+                animated
+                networkActivityIndicatorVisible
+                style='auto'
+            />
             <Footer />
         </SafeAreaView>
     );
 }
 
+const paddingTop =
+    Platform.OS === 'android' ? NativeStatusBar.currentHeight : 0;
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
-        paddingTop:
-            Platform.OS === 'android'
-                ? (NativeStatusBar.currentHeight || 0) + 10
-                : 0,
+        paddingTop,
     },
 });
